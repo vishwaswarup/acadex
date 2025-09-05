@@ -1,0 +1,197 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* FitTrack Design System - Beautiful fitness app styling */
+
+@layer base {
+  :root {
+    /* Core Colors - Fitness-focused palette */
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    /* Primary - Vibrant orange for energy and motivation */
+    --primary: 14 100% 57%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 14 100% 67%;
+
+    /* Secondary - Deep blue for trust and stability */
+    --secondary: 213 94% 68%;
+    --secondary-foreground: 0 0% 100%;
+
+    /* Success - Bright green for achievements */
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    --success-glow: 142 76% 46%;
+
+    /* Muted colors */
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 14 100% 57%;
+
+    --radius: 0.75rem;
+
+    /* Fitness-specific colors */
+    --streak-fire: 14 100% 57%;
+    --workout-complete: 142 76% 36%;
+    --rest-day: 210 40% 96.1%;
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(14 100% 57%), hsl(14 100% 67%));
+    --gradient-success: linear-gradient(135deg, hsl(142 76% 36%), hsl(142 76% 46%));
+    --gradient-hero: linear-gradient(135deg, hsl(14 100% 57%), hsl(213 94% 68%));
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(210 40% 98%));
+
+    /* Shadows */
+    --shadow-primary: 0 10px 30px -10px hsl(14 100% 57% / 0.3);
+    --shadow-success: 0 10px 30px -10px hsl(142 76% 36% / 0.3);
+    --shadow-card: 0 4px 20px -2px hsl(222.2 84% 4.9% / 0.1);
+    --shadow-glow: 0 0 40px hsl(14 100% 67% / 0.4);
+
+    /* Animation */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+
+    --card: 217.2 32.6% 17.5%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 217.2 32.6% 17.5%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 14 100% 57%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 213 94% 68%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 14 100% 57%;
+
+    --gradient-card: linear-gradient(145deg, hsl(217.2 32.6% 17.5%), hsl(217.2 32.6% 19.5%));
+    --shadow-card: 0 4px 20px -2px hsl(0 0% 0% / 0.3);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-muted;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-primary/30 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-primary/50;
+  }
+}
+
+@layer components {
+  /* Button variants */
+  .btn-hero {
+    @apply bg-gradient-to-r from-primary to-primary-glow text-primary-foreground shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300;
+  }
+
+  .btn-success {
+    @apply bg-gradient-to-r from-success to-success-glow text-success-foreground shadow-lg hover:shadow-xl;
+  }
+
+  /* Card variants */
+  .card-gradient {
+    background: var(--gradient-card);
+    box-shadow: var(--shadow-card);
+  }
+
+  .card-hover {
+    @apply transition-transform duration-200 hover:scale-105 hover:shadow-lg;
+  }
+
+  /* Animations */
+  .streak-fire {
+    animation: pulse-fire 2s infinite;
+  }
+
+  @keyframes pulse-fire {
+    0%, 100% {
+      transform: scale(1);
+      filter: hue-rotate(0deg);
+    }
+    50% {
+      transform: scale(1.1);
+      filter: hue-rotate(10deg);
+    }
+  }
+
+  .workout-complete {
+    animation: success-bounce 0.5s ease-out;
+  }
+
+  @keyframes success-bounce {
+    0% {
+      transform: scale(0.8);
+      opacity: 0;
+    }
+    50% {
+      transform: scale(1.1);
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  /* Gradient text */
+  .text-gradient {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Mobile optimizations */
+  .mobile-scroll {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+}
