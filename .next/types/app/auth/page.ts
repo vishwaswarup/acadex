@@ -1,4 +1,4 @@
-// File: /Users/vishwaswaruprath/fitstreak-forge/app/auth/page.tsx
+// File: C:\Users\daksh\OneDrive\Desktop\XHYPHER\fitstreak-forge\app\auth\page.tsx
 import * as entry from '../../../../app/auth/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

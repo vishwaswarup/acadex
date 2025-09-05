@@ -1,25 +1,25 @@
-# FitTrack - Fitness Tracking App
+# Acadex - Grade smarter.
 
-A beautiful, mobile-first fitness tracking application built with React, TypeScript, Tailwind CSS, and Firebase.
+A modern assignment management system built with Next.js, TypeScript, and Firebase. Streamline grading workflows for teachers and simplify assignment submission for students.
 
 ## Features
 
-- 🔥 **Streak Tracking**: Build and maintain workout streaks with visual feedback
-- 💪 **Workout Splits**: Create custom workout routines or choose from templates
-- 📅 **Calendar View**: Visual workout history with react-day-picker
-- 🎯 **Quick Logging**: One-tap workout logging with duplicate prevention
-- 📱 **Mobile-First**: Responsive design optimized for mobile devices
-- 🔐 **Authentication**: Secure Firebase Auth with email/password
+- 📚 **Assignment Management**: Create, distribute, and track assignments with detailed questions
+- 📤 **File Submissions**: Students can upload PDF submissions with progress tracking
+- ✅ **Smart Grading**: Question-wise grading with automatic total calculation
+- 📊 **Analytics Dashboard**: Track assignment progress and class performance
+- 👥 **Role-Based Access**: Separate interfaces for students and teachers
+- 🔐 **Secure Authentication**: Firebase Auth with role-based permissions
 - ☁️ **Cloud Storage**: Real-time data sync with Firestore
-- ✨ **Beautiful UI**: Modern design with Framer Motion animations
+- 📱 **Mobile-First**: Responsive design optimized for all devices
+- ✨ **Modern UI**: Beautiful interface with smooth animations
 
 ## Tech Stack
 
-- **Frontend**: React 18, TypeScript, Vite
+- **Frontend**: Next.js 14, React 18, TypeScript
 - **Styling**: Tailwind CSS, shadcn/ui components
-- **Backend**: Firebase Auth, Firestore
+- **Backend**: Firebase Auth, Firestore, Firebase Storage
 - **Animations**: Framer Motion
-- **Calendar**: react-day-picker
 - **Icons**: Lucide React
 - **Date Handling**: date-fns, date-fns-tz
 - **Testing**: Playwright, Vitest
@@ -30,14 +30,14 @@ A beautiful, mobile-first fitness tracking application built with React, TypeScr
 ### Prerequisites
 
 - Node.js 18+ and npm
-- Firebase project with Auth and Firestore enabled
+- Firebase project with Auth, Firestore, and Storage enabled
 
 ### Installation
 
 1. **Clone the repository**
    ```bash
    git clone <your-repo-url>
-   cd fittrack
+   cd acadex
    ```
 
 2. **Install dependencies**
@@ -49,6 +49,7 @@ A beautiful, mobile-first fitness tracking application built with React, TypeScr
    - Create a Firebase project at [https://console.firebase.google.com](https://console.firebase.google.com)
    - Enable Authentication (Email/Password provider)
    - Enable Firestore Database
+   - Enable Firebase Storage
    - Copy your Firebase configuration
 
 4. **Configure environment variables**
@@ -85,61 +86,154 @@ A beautiful, mobile-first fitness tracking application built with React, TypeScr
    npm run dev
    ```
 
-The app will be available at `http://localhost:8080`.
+The app will be available at `http://localhost:3000`.
 
 ## Project Structure
 
 ```
-src/
-├── components/
-│   ├── auth/              # Authentication components
-│   ├── dashboard/         # Dashboard widgets
-│   ├── common/           # Shared components
-│   └── ui/               # shadcn/ui components
-├── hooks/
-│   ├── useAuth.ts        # Authentication hook
-│   └── use-toast.ts      # Toast notifications
-├── lib/
-│   ├── firebase/         # Firebase configuration
-│   ├── types/            # TypeScript definitions
-│   ├── constants/        # Workout templates
-│   └── utils/            # Utility functions
-├── pages/                # Route components
-└── test/                 # Test setup
+app/
+├── dashboard/
+│   ├── student/          # Student dashboard
+│   └── teacher/          # Teacher dashboard
+├── assignments/
+│   ├── [id]/            # Assignment detail view
+│   ├── [id]/submissions/ # Grade submissions
+│   └── create/          # Create assignment
+├── submissions/          # Submission history
+└── api/                 # API endpoints
+    ├── assignments.ts
+    ├── submissions.ts
+    ├── upload.ts
+    └── grades.ts
+
+components/
+├── assignment/           # Assignment-related components
+├── auth/                # Authentication components
+├── dashboard/           # Dashboard widgets
+├── common/              # Shared components
+└── ui/                  # shadcn/ui components
+
+lib/
+├── firebase/            # Firebase configuration
+├── types/               # TypeScript definitions
+└── utils/               # Utility functions
+
+models/
+└── README.md            # Data model documentation
 ```
+
+## User Roles
+
+### Student Features
+- View assigned assignments with due dates
+- Upload PDF submissions with progress tracking
+- View submission history and grades
+- Track assignment progress
+
+### Teacher Features
+- Create assignments with custom questions
+- View all submissions for grading
+- Grade submissions question-wise
+- View class analytics and performance metrics
+
+## Data Models
+
+### Users
+```typescript
+{
+  id: string;
+  name: string;
+  email: string;
+  role: 'student' | 'teacher';
+  classIds: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+```
+
+### Assignments
+```typescript
+{
+  id: string;
+  title: string;
+  classId: string;
+  description: string;
+  dueDate: string;
+  questions: Array<{
+    id: string;
+    text: string;
+    maxMarks: number;
+  }>;
+  createdAt: string;
+  updatedAt: string;
+}
+```
+
+### Submissions
+```typescript
+{
+  id: string;
+  assignmentId: string;
+  studentId: string;
+  files: Array<{
+    url: string;
+    name: string;
+    size: number;
+  }>;
+  submittedAt: string;
+  status: 'draft' | 'submitted' | 'graded';
+  createdAt: string;
+}
+```
+
+### Grades
+```typescript
+{
+  id: string;
+  submissionId: string;
+  teacherId: string;
+  marks: Array<{
+    questionId: string;
+    mark: number;
+  }>;
+  total: number;
+  feedback: string;
+  gradedAt: string;
+  createdAt: string;
+}
+```
+
+## API Endpoints
+
+### Assignments
+- `GET /api/assignments` - List assignments
+- `POST /api/assignments` - Create assignment (teacher only)
+
+### Submissions
+- `GET /api/submissions` - List submissions
+- `POST /api/submissions` - Create submission (student only)
+
+### File Upload
+- `POST /api/upload` - Upload PDF file to storage
+
+### Grading
+- `POST /api/grades` - Submit grades (teacher only)
 
 ## Scripts
 
 - `npm run dev` - Start development server
 - `npm run build` - Build for production
-- `npm run preview` - Preview production build
+- `npm run start` - Start production server
 - `npm run test` - Run unit tests with Vitest
 - `npm run test:e2e` - Run end-to-end tests with Playwright
 - `npm run lint` - Run ESLint
 
-## Features in Detail
-
-### Workout Split Templates
-
-FitTrack includes three pre-built workout templates:
-
-1. **3-Day Full Body** - Perfect for beginners
-2. **4-Day Upper/Lower** - Balanced intermediate routine
-3. **5-Day Push/Pull/Legs** - Advanced bodybuilding split
-
-### Streak Algorithm
-
-The streak system uses timezone-aware date calculations:
-- Consecutive daily workouts increase the streak
-- Missing a day resets the streak to 1
-- Same-day duplicate logging is prevented
-- Visual fire emoji animation for active streaks
-
-### Security
+## Security
 
 - Firestore security rules ensure users can only access their own data
+- Role-based API endpoints with proper authorization
+- File upload restrictions (PDF only)
 - Client-side route protection with authentication guards
-- Atomic transactions for streak updates to prevent data corruption
 
 ## Testing
 
@@ -159,11 +253,6 @@ npm run test:e2e
 1. Connect your GitHub repository to Vercel
 2. Add environment variables in Vercel dashboard
 3. Deploy automatically on git push
-
-### Netlify
-1. Build the project: `npm run build`
-2. Deploy the `dist` folder to Netlify
-3. Configure environment variables
 
 ### Firebase Hosting
 ```bash
@@ -193,4 +282,4 @@ If you encounter any issues or have questions:
 
 ---
 
-Built with ❤️ for the fitness community
+Built with ❤️ for educators and students

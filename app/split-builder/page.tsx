@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Header from '@/components/common/Header';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,16 +9,52 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Plus, Save } from 'lucide-react';
-import { Exercise, WorkoutDay } from '@/lib/types';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { Exercise, WorkoutDay, WorkoutSplit } from '@/lib/types';
+import { addDoc, collection, doc, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase/config';
 
-export default function SplitBuilderPage() {
+function SplitBuilderContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [splitName, setSplitName] = useState('My Split');
   const [daysPerWeek, setDaysPerWeek] = useState<number>(0);
   const [days, setDays] = useState<WorkoutDay[]>([]);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editSplitId, setEditSplitId] = useState<string | null>(null);
+
+  // Load existing split data when in edit mode
+  useEffect(() => {
+    const loadSplitForEdit = async () => {
+      const editId = searchParams.get('edit');
+      if (!editId || !auth.currentUser) return;
+
+      setIsEditMode(true);
+      setEditSplitId(editId);
+      setLoading(true);
+
+      try {
+        const splitDoc = await getDoc(doc(db, 'users', auth.currentUser.uid, 'splits', editId));
+        if (splitDoc.exists()) {
+          const splitData = splitDoc.data() as WorkoutSplit;
+          setSplitName(splitData.name || 'My Split');
+          setDaysPerWeek(splitData.daysPerWeek || 0);
+          setDays(splitData.days || []);
+        } else {
+          console.error('Split not found');
+          router.push('/split-builder');
+        }
+      } catch (error) {
+        console.error('Error loading split:', error);
+        router.push('/split-builder');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSplitForEdit();
+  }, [searchParams, router]);
 
   const handleSetDays = (num: number) => {
     setDaysPerWeek(num);
@@ -68,23 +104,47 @@ export default function SplitBuilderPage() {
         daysPerWeek,
         days,
         isTemplate: false,
-        createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
-      await addDoc(collection(db, 'users', user.uid, 'splits'), payload);
+
+      if (isEditMode && editSplitId) {
+        // Update existing split
+        await updateDoc(doc(db, 'users', user.uid, 'splits', editSplitId), payload);
+      } else {
+        // Create new split
+        await addDoc(collection(db, 'users', user.uid, 'splits'), {
+          ...payload,
+          createdAt: serverTimestamp(),
+        });
+      }
       router.push('/dashboard');
     } catch (e) {
       console.error(e);
-      alert('Failed to save split');
+      alert(`Failed to ${isEditMode ? 'update' : 'save'} split`);
     } finally {
       setSaving(false);
     }
   };
 
+  if (loading) {
+    return (
+      <ProtectedRoute>
+        <div className="min-h-screen">
+          <Header title="Split Builder" />
+          <div className="container mx-auto p-6">
+            <div className="text-center">
+              <p>Loading split data...</p>
+            </div>
+          </div>
+        </div>
+      </ProtectedRoute>
+    );
+  }
+
   return (
     <ProtectedRoute>
     <div className="min-h-screen">
-      <Header title="Split Builder" />
+      <Header title={isEditMode ? "Edit Split" : "Split Builder"} />
       <div className="container mx-auto p-6 space-y-6">
         <Card className="rounded-xl card-hover">
           <CardHeader>
@@ -147,11 +207,20 @@ export default function SplitBuilderPage() {
 
         <div className="flex justify-end">
           <Button className="h-12 rounded-xl btn-hero" onClick={saveSplit} disabled={saving || daysPerWeek <= 0}>
-            <Save className="h-4 w-4 mr-2" /> Save & Go to Dashboard
+            <Save className="h-4 w-4 mr-2" /> 
+            {saving ? 'Saving...' : (isEditMode ? 'Update Split' : 'Save & Go to Dashboard')}
           </Button>
         </div>
       </div>
     </div>
     </ProtectedRoute>
+  );
+}
+
+export default function SplitBuilderPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <SplitBuilderContent />
+    </Suspense>
   );
 }

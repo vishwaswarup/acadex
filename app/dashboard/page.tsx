@@ -8,6 +8,7 @@ import WorkoutCalendar from '@/components/dashboard/WorkoutCalendar'
 import QuickLog from '@/components/dashboard/QuickLog'
 import { Button } from '@/components/ui/button'
 import { useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import ProtectedRoute from '@/components/auth/ProtectedRoute'
 import { useAuth } from '@/hooks/useAuth'
 import { addDoc, collection, doc, getDocs, orderBy, query, serverTimestamp, setDoc } from 'firebase/firestore'
@@ -17,6 +18,7 @@ import type { WorkoutSplit, WorkoutLog } from '@/lib/types'
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const [streak, setStreak] = useState<number>(user?.streak ?? 0);
   const [lastLogged, setLastLogged] = useState<string | null>(user?.lastLoggedDate ?? null);
   const [split, setSplit] = useState<WorkoutSplit | null>(null);
@@ -107,6 +109,17 @@ export default function DashboardPage() {
     }
   };
 
+  // Handler for Edit button click - navigates to split-builder with edit mode
+  const handleEditSplit = () => {
+    if (split?.id) {
+      // Navigate to split-builder with the split ID as a query parameter for editing
+      router.push(`/split-builder?edit=${split.id}`);
+    } else {
+      // If no split exists, navigate to create a new one
+      router.push('/split-builder');
+    }
+  };
+
   return (
     <ProtectedRoute>
     <div className="min-h-screen pb-20">
@@ -123,7 +136,7 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="md:col-span-2">
-            <SplitSummary split={split} />
+            <SplitSummary split={split} onEditClick={handleEditSplit} />
           </div>
         </div>
 

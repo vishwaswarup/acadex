@@ -1,4 +1,4 @@
-// File: /Users/vishwaswaruprath/fitstreak-forge/app/layout.tsx
+// File: C:\Users\daksh\OneDrive\Desktop\XHYPHER\fitstreak-forge\app\layout.tsx
 import * as entry from '../../../app/layout.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

@@ -6,8 +6,8 @@ import AuthProvider from '@/components/auth/AuthProvider'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'FitTrack',
-  description: 'Track your fitness journey',
+  title: 'Acadex',
+  description: 'Grade smarter.',
 }
 
 export default function RootLayout({
