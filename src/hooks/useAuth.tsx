@@ -1,12 +1,12 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { auth } from '@/lib/firebase';
-import { signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, onAuthStateChanged } from 'firebase/auth';
-import type { AuthContextType } from '@/types/auth';
+import { auth } from '../lib/firebase/config';
+import { signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
+import type { AuthContextType } from '../types/auth';
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -23,11 +23,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = () => signOut(auth);
   
-  const signup = (email: string, password: string) => {
-    return createUserWithEmailAndPassword(auth, email, password);
+  const signup = async (email: string, password: string) => {
+    return await createUserWithEmailAndPassword(auth, email, password);
   };
 
-  const value = {
+  const value: AuthContextType = {
     user,
     loading,
     login,
