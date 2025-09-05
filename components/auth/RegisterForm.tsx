@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, GraduationCap, BookOpen } from 'lucide-react';
 
 interface RegisterFormProps {
   onSuccess?: () => void;
@@ -21,24 +21,42 @@ export default function RegisterForm({ onSuccess }: RegisterFormProps) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [role, setRole] = useState<'student' | 'teacher'>('student');
   const { signUp } = useAuth();
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
 
     if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long.');
       return;
     }
 
     setIsLoading(true);
 
     try {
-      await signUp(email, password, name);
+      await signUp(email, password, name, role);
       onSuccess?.();
-      router.push('/setup');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Registration failed:', error);
+      // Handle specific Firebase auth errors
+      if (error.code === 'auth/email-already-in-use') {
+        setError('An account with this email already exists.');
+      } else if (error.code === 'auth/invalid-email') {
+        setError('Please enter a valid email address.');
+      } else if (error.code === 'auth/weak-password') {
+        setError('Password is too weak. Please choose a stronger password.');
+      } else {
+        setError(error.message || 'Registration failed. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -52,10 +70,15 @@ export default function RegisterForm({ onSuccess }: RegisterFormProps) {
     >
       <Card className="w-full max-w-md mx-auto card-gradient">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold text-gradient">Join FitTrack</CardTitle>
-          <CardDescription>Create your account and start tracking your fitness journey</CardDescription>
+          <CardTitle className="text-2xl font-bold text-gradient">Join Acadex</CardTitle>
+          <CardDescription>Create your account and start managing your assignments smarter.</CardDescription>
         </CardHeader>
         <CardContent>
+          {error && (
+            <div className="mb-4 p-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md">
+              {error}
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="name">Full Name</Label>
@@ -70,6 +93,38 @@ export default function RegisterForm({ onSuccess }: RegisterFormProps) {
                   className="pl-10"
                   required
                 />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Role</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setRole('student')}
+                  className={`p-3 rounded-lg border-2 transition-all ${
+                    role === 'student'
+                      ? 'border-blue-500 bg-blue-50 text-blue-700'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <BookOpen className="h-5 w-5 mx-auto mb-2" />
+                  <div className="text-sm font-medium">Student</div>
+                  <div className="text-xs text-gray-500">Submit assignments</div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRole('teacher')}
+                  className={`p-3 rounded-lg border-2 transition-all ${
+                    role === 'teacher'
+                      ? 'border-green-500 bg-green-50 text-green-700'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <GraduationCap className="h-5 w-5 mx-auto mb-2" />
+                  <div className="text-sm font-medium">Teacher</div>
+                  <div className="text-xs text-gray-500">Grade assignments</div>
+                </button>
               </div>
             </div>
 

@@ -13,15 +13,19 @@ import {
   limit,
   Timestamp,
   writeBatch,
-  runTransaction
+  runTransaction,
+  onSnapshot,
+  Unsubscribe
 } from 'firebase/firestore';
 import { db } from './config';
-import { User, WorkoutSplit, WorkoutLog } from '@/lib/types';
+import { User, WorkoutSplit, WorkoutLog, Assignment, Submission } from '@/lib/types';
 
 // Collections
 export const USERS_COLLECTION = 'users';
 export const WORKOUT_SPLITS_COLLECTION = 'workoutSplits';
 export const WORKOUT_LOGS_COLLECTION = 'workoutLogs';
+export const ASSIGNMENTS_COLLECTION = 'assignments';
+export const SUBMISSIONS_COLLECTION = 'submissions';
 
 // Helper function to convert Firestore timestamp to ISO string
 const timestampToISO = (timestamp: Timestamp): string => {
@@ -203,4 +207,232 @@ export const updateUserStreakAtomic = async (
       createdAt: Timestamp.now()
     });
   });
+};
+
+// ===== EDUCATION DOMAIN FUNCTIONS =====
+
+// Real-time listeners for assignments and submissions
+export const listenToAssignments = (
+  callback: (assignments: Assignment[]) => void,
+  onError?: (error: Error) => void
+): Unsubscribe => {
+  // Try with orderBy first, fallback to simple query if it fails
+  let q;
+  try {
+    q = query(
+      collection(db, ASSIGNMENTS_COLLECTION),
+      orderBy('createdAt', 'desc')
+    );
+  } catch (error) {
+    console.warn('Failed to create ordered assignments query, falling back to simple query:', error);
+    q = query(collection(db, ASSIGNMENTS_COLLECTION));
+  }
+  
+  return onSnapshot(q, 
+    (querySnapshot) => {
+      try {
+        const assignments: Assignment[] = querySnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            ...data,
+            id: doc.id,
+            createdAt: data.createdAt ? timestampToISO(data.createdAt) : new Date().toISOString(),
+            updatedAt: data.updatedAt ? timestampToISO(data.updatedAt) : new Date().toISOString()
+          } as Assignment;
+        });
+        
+        // Sort manually if we couldn't use orderBy
+        assignments.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        
+        callback(assignments);
+      } catch (error) {
+        console.error('Error processing assignment data:', error);
+        if (onError) onError(error as Error);
+      }
+    },
+    (error) => {
+      console.error('Error listening to assignments:', error);
+      if (onError) onError(error);
+    }
+  );
+};
+
+export const listenToSubmissions = (
+  studentId: string,
+  callback: (submissions: Submission[]) => void,
+  onError?: (error: Error) => void
+): Unsubscribe => {
+  // Try with orderBy first, fallback to simple query if it fails
+  let q;
+  try {
+    q = query(
+      collection(db, SUBMISSIONS_COLLECTION),
+      where('studentId', '==', studentId),
+      orderBy('submittedAt', 'desc')
+    );
+  } catch (error) {
+    console.warn('Failed to create ordered submissions query, falling back to simple query:', error);
+    q = query(
+      collection(db, SUBMISSIONS_COLLECTION),
+      where('studentId', '==', studentId)
+    );
+  }
+  
+  return onSnapshot(q, 
+    (querySnapshot) => {
+      try {
+        const submissions: Submission[] = querySnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            ...data,
+            id: doc.id,
+            submittedAt: data.submittedAt ? timestampToISO(data.submittedAt) : new Date().toISOString(),
+            createdAt: data.createdAt ? timestampToISO(data.createdAt) : new Date().toISOString()
+          } as Submission;
+        });
+        
+        // Sort manually if we couldn't use orderBy
+        submissions.sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
+        
+        callback(submissions);
+      } catch (error) {
+        console.error('Error processing submission data:', error);
+        if (onError) onError(error as Error);
+      }
+    },
+    (error) => {
+      console.error('Error listening to submissions:', error);
+      if (onError) onError(error);
+    }
+  );
+};
+
+// Create submission
+export const createSubmission = async (submissionData: Omit<Submission, 'id' | 'createdAt'>): Promise<string> => {
+  const docRef = await addDoc(collection(db, SUBMISSIONS_COLLECTION), {
+    ...submissionData,
+    createdAt: Timestamp.now()
+  });
+  
+  return docRef.id;
+};
+
+// Create assignment
+export const createAssignment = async (assignmentData: Omit<Assignment, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> => {
+  const now = Timestamp.now();
+  
+  // Ensure all required fields are present with proper types
+  const assignmentDoc = {
+    title: assignmentData.title,
+    description: assignmentData.description,
+    classId: assignmentData.classId,
+    dueDate: assignmentData.dueDate,
+    questions: assignmentData.questions,
+    createdBy: assignmentData.createdBy,
+    totalQuestions: assignmentData.questions.length, // Add totalQuestions field
+    createdAt: now,
+    updatedAt: now
+  };
+  
+  const docRef = await addDoc(collection(db, ASSIGNMENTS_COLLECTION), assignmentDoc);
+  
+  return docRef.id;
+};
+
+// Listen to assignments for a specific teacher
+export const listenToTeacherAssignments = (
+  teacherId: string,
+  callback: (assignments: Assignment[]) => void,
+  onError?: (error: Error) => void
+): Unsubscribe => {
+  // First try with orderBy, if that fails, fall back to simple where query
+  let q;
+  try {
+    q = query(
+      collection(db, ASSIGNMENTS_COLLECTION),
+      where('createdBy', '==', teacherId),
+      orderBy('createdAt', 'desc')
+    );
+  } catch (error) {
+    console.warn('Failed to create ordered query, falling back to simple query:', error);
+    // Fallback to simple query without orderBy
+    q = query(
+      collection(db, ASSIGNMENTS_COLLECTION),
+      where('createdBy', '==', teacherId)
+    );
+  }
+  
+  return onSnapshot(q, 
+    (querySnapshot) => {
+      try {
+        const assignments: Assignment[] = querySnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            ...data,
+            id: doc.id,
+            createdAt: data.createdAt ? timestampToISO(data.createdAt) : new Date().toISOString(),
+            updatedAt: data.updatedAt ? timestampToISO(data.updatedAt) : new Date().toISOString()
+          } as Assignment;
+        });
+        
+        // Sort manually if we couldn't use orderBy
+        assignments.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        
+        callback(assignments);
+      } catch (error) {
+        console.error('Error processing assignment data:', error);
+        if (onError) onError(error as Error);
+      }
+    },
+    (error) => {
+      console.error('Error listening to teacher assignments:', error);
+      if (onError) onError(error);
+    }
+  );
+};
+
+// Listen to all submissions (for teacher dashboard)
+export const listenToAllSubmissions = (
+  callback: (submissions: Submission[]) => void,
+  onError?: (error: Error) => void
+): Unsubscribe => {
+  // Try with orderBy first, fallback to simple query if it fails
+  let q;
+  try {
+    q = query(
+      collection(db, SUBMISSIONS_COLLECTION),
+      orderBy('submittedAt', 'desc')
+    );
+  } catch (error) {
+    console.warn('Failed to create ordered submissions query, falling back to simple query:', error);
+    q = query(collection(db, SUBMISSIONS_COLLECTION));
+  }
+  
+  return onSnapshot(q, 
+    (querySnapshot) => {
+      try {
+        const submissions: Submission[] = querySnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            ...data,
+            id: doc.id,
+            submittedAt: data.submittedAt ? timestampToISO(data.submittedAt) : new Date().toISOString(),
+            createdAt: data.createdAt ? timestampToISO(data.createdAt) : new Date().toISOString()
+          } as Submission;
+        });
+        
+        // Sort manually if we couldn't use orderBy
+        submissions.sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
+        
+        callback(submissions);
+      } catch (error) {
+        console.error('Error processing submission data:', error);
+        if (onError) onError(error as Error);
+      }
+    },
+    (error) => {
+      console.error('Error listening to all submissions:', error);
+      if (onError) onError(error);
+    }
+  );
 };

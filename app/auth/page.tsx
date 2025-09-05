@@ -12,8 +12,8 @@ export default function AuthPage() {
       <div className="w-full max-w-xl">
         <Tabs value={tab} onValueChange={setTab} className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="login">Sign In</TabsTrigger>
-            <TabsTrigger value="register">Register</TabsTrigger>
+            <TabsTrigger value="login">Log In</TabsTrigger>
+            <TabsTrigger value="register">Create Account</TabsTrigger>
           </TabsList>
           <TabsContent value="login" className="mt-6">
             <LoginForm onSuccess={() => setTab('login')} />

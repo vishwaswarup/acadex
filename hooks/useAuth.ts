@@ -38,7 +38,8 @@ export const useAuthProvider = (): AuthContextType => {
               name: firebaseUser.displayName || 'User',
               streak: 0,
               lastLoggedDate: null,
-              xpLevel: 1
+              xpLevel: 1,
+              role: 'student' as 'student' | 'teacher' // Default role
             };
             
             await createUser(newUserData);
@@ -50,6 +51,13 @@ export const useAuthProvider = (): AuthContextType => {
           }
           
           setUser(userData);
+          
+          // Route based on user role after successful login
+          if (userData.role === 'teacher') {
+            router.push('/teacher/dashboard');
+          } else {
+            router.push('/dashboard');
+          }
         } catch (error) {
           console.error('Error fetching user data:', error);
           toast({
@@ -65,7 +73,7 @@ export const useAuthProvider = (): AuthContextType => {
     });
 
     return () => unsubscribe();
-  }, [toast]);
+  }, [toast, router]);
 
   const signIn = async (email: string, password: string) => {
     try {
@@ -75,7 +83,8 @@ export const useAuthProvider = (): AuthContextType => {
         title: "Welcome back!",
         description: "Successfully signed in"
       });
-      router.push('/dashboard');
+      // Note: The actual routing will be handled by the auth state change listener
+      // which will check the user's role and route accordingly
     } catch (error: any) {
       toast({
         title: "Sign in failed",
@@ -88,7 +97,7 @@ export const useAuthProvider = (): AuthContextType => {
     }
   };
 
-  const signUp = async (email: string, password: string, name: string) => {
+  const signUp = async (email: string, password: string, name: string, role: 'student' | 'teacher' = 'student') => {
     try {
       setLoading(true);
       const result = await firebaseSignUp(email, password);
@@ -100,16 +109,23 @@ export const useAuthProvider = (): AuthContextType => {
         name: name,
         streak: 0,
         lastLoggedDate: null,
-        xpLevel: 1
+        xpLevel: 1,
+        role: role // Add role field
       };
       
       await createUser(userData);
       
       toast({
         title: "Account created!",
-        description: "Welcome to FitTrack"
+        description: "Welcome to Acadex"
       });
-      router.push('/dashboard');
+      
+      // Route based on role
+      if (role === 'teacher') {
+        router.push('/teacher/dashboard');
+      } else {
+        router.push('/dashboard');
+      }
     } catch (error: any) {
       toast({
         title: "Sign up failed",
