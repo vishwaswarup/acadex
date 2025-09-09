@@ -1,3 +1,5 @@
+'use client';
+
 import { useAuth } from '../../hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
@@ -18,18 +20,25 @@ export default function ProtectedRoute({ children, fallback, role }: ProtectedRo
     if (loading) return;
 
     if (!user) {
-      router.push('/auth');
+      // Not logged in → send to login
+      router.replace('/auth');
       return;
     }
 
-    // If a role is required and the user's role doesn't match, redirect
     if (role && user.role !== role) {
-      const redirectPath = user.role === 'teacher' ? '/dashboard/teacher' : '/dashboard/student';
-      router.push(redirectPath);
+      // Wrong role → send to their dashboard
+      const redirectPath =
+        user.role === 'teacher' ? '/dashboard/teacher' : '/dashboard/student';
+      router.replace(redirectPath);
     }
   }, [user, loading, router, role]);
 
-  if (loading || (role && user?.role !== role)) {
+  if (loading) {
+    return fallback || <LoadingSpinner />;
+  }
+
+  // Show fallback while redirecting mismatched role
+  if (role && user && user.role !== role) {
     return fallback || <LoadingSpinner />;
   }
 
