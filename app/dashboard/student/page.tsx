@@ -1,47 +1,46 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
-import ProtectedRoute from "@/components/auth/ProtectedRoute";
-import LoadingSpinner from "@/components/common/LoadingSpinner";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { useAuth } from "@/hooks/useAuth";
-import { listenToAssignments, listenToSubmissions } from "@/lib/firebase/firestore";
-import { Assignment, Submission } from "@/lib/types";
+import { useEffect, useState } from 'react';
+import { useAuth } from '@/hooks/useAuth';
+import ProtectedRoute from '@/components/auth/ProtectedRoute';
+import LoadingSpinner from '@/components/common/LoadingSpinner';
+import { listenToAssignments, listenToSubmissions } from '@/lib/firebase/firestore';
+import { Assignment, Submission } from '@/lib/types';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function StudentDashboardPage() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadingData, setLoadingData] = useState(true);
 
   useEffect(() => {
-    if (!user?.uid) return;
+    if (!user) return;
 
-    const unsubAssignments = listenToAssignments(
-      (data) => {
-        setAssignments(data);
-        setLoading(false);
-      },
-      (error) => {
-        console.error("Error fetching assignments:", error);
-        setLoading(false);
-      }
+    setLoadingData(true);
+
+    // Listen to all assignments
+    const unsubscribeAssignments = listenToAssignments(
+      (data) => setAssignments(data),
+      (error) => console.error('Assignments listener error:', error)
     );
 
-    const unsubSubmissions = listenToSubmissions(
+    // Listen to submissions for this student
+    const unsubscribeSubmissions = listenToSubmissions(
       user.uid,
       (data) => setSubmissions(data),
-      (error) => console.error("Error fetching submissions:", error)
+      (error) => console.error('Submissions listener error:', error)
     );
 
-    return () => {
-      unsubAssignments();
-      unsubSubmissions();
-    };
-  }, [user?.uid]);
+    setLoadingData(false);
 
-  if (loading) {
+    return () => {
+      unsubscribeAssignments();
+      unsubscribeSubmissions();
+    };
+  }, [user]);
+
+  if (loading || loadingData) {
     return (
       <ProtectedRoute role="student">
         <div className="min-h-screen flex items-center justify-center">
@@ -53,54 +52,40 @@ export default function StudentDashboardPage() {
 
   return (
     <ProtectedRoute role="student">
-      <div className="min-h-screen p-6">
-        <h1 className="text-3xl font-bold mb-6">Student Dashboard</h1>
+      <div className="min-h-screen p-6 space-y-6">
+        <h1 className="text-3xl font-bold">Welcome, {user?.name}</h1>
 
-        {/* Assignments Section */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Available Assignments</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {assignments.length === 0 ? (
-              <p className="text-muted-foreground">No assignments available.</p>
-            ) : (
-              <ul className="space-y-2">
-                {assignments.map((a) => (
-                  <li key={a.id} className="flex justify-between items-center border p-3 rounded-lg">
-                    <span>{a.title}</span>
-                    <Button size="sm" variant="outline">
-                      View
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
+        <div className="space-y-4">
+          <h2 className="text-2xl font-semibold">Your Assignments</h2>
+          {assignments.length === 0 ? (
+            <p>No assignments yet.</p>
+          ) : (
+            assignments.map((assignment) => {
+              const submission = submissions.find((s) => s.assignmentId === assignment.id);
 
-        {/* Submissions Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Your Submissions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {submissions.length === 0 ? (
-              <p className="text-muted-foreground">You haven't submitted any assignments yet.</p>
-            ) : (
-              <ul className="space-y-2">
-                {submissions.map((s) => (
-                  <li key={s.id} className="flex justify-between items-center border p-3 rounded-lg">
-                    <span>
-                      {s.assignmentId} – {new Date(s.submittedAt).toLocaleString()} – {s.status}
-                    </span>
-                    <Button size="sm">View</Button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
+              return (
+                <Card key={assignment.id}>
+                  <CardHeader>
+                    <CardTitle>{assignment.title}</CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      Due: {new Date(assignment.dueDate).toLocaleDateString()}
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    <p>{assignment.description}</p>
+                    {submission ? (
+                      <p className="mt-2 text-green-600">
+                        Status: {submission.status.charAt(0).toUpperCase() + submission.status.slice(1)}
+                      </p>
+                    ) : (
+                      <p className="mt-2 text-orange-600">Not submitted yet</p>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })
+          )}
+        </div>
       </div>
     </ProtectedRoute>
   );
