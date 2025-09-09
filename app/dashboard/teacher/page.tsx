@@ -5,11 +5,12 @@ import { useRouter } from 'next/navigation';
 import Header from '@/components/common/Header';
 import Navigation from '@/components/common/Navigation';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
+import GradingModal from '@/components/assignment/GradingModal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, FileText, Users, CheckCircle, Clock, Plus } from 'lucide-react';
-import { Assignment, Submission } from '@/lib/types';
+import { Assignment, Submission, QuestionMark } from '@/lib/types';
 import { listenToTeacherAssignments, listenToAllSubmissions } from '@/lib/firebase/firestore';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -58,6 +59,9 @@ export default function TeacherDashboard() {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
   const [isShowingDemoData, setIsShowingDemoData] = useState(false);
+  const [gradingModalOpen, setGradingModalOpen] = useState(false);
+  const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
+  const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
 
   // Real-time Firestore listeners
   useEffect(() => {
@@ -148,6 +152,58 @@ export default function TeacherDashboard() {
         return <Badge variant="outline">Draft</Badge>;
       default:
         return <Badge variant="destructive">Not Submitted</Badge>;
+    }
+  };
+
+  const handleGradeSubmission = (submission: Submission) => {
+    const assignment = assignments.find(a => a.id === submission.assignmentId);
+    if (assignment) {
+      setSelectedSubmission(submission);
+      setSelectedAssignment(assignment);
+      setGradingModalOpen(true);
+    }
+  };
+
+  const handleGradeSubmit = async (marks: QuestionMark[], feedback: string) => {
+    if (!selectedSubmission || !selectedAssignment) return;
+
+    try {
+      // Create grade via API
+      const response = await fetch('/api/grades', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          submissionId: selectedSubmission.id,
+          teacherId: user?.uid,
+          marks,
+          feedback,
+          userId: user?.uid,
+          userRole: 'teacher'
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to submit grade');
+      }
+
+      toast({
+        title: "Grade submitted successfully!",
+        description: `Grade for "${selectedAssignment.title}" has been saved.`,
+      });
+
+      setGradingModalOpen(false);
+      setSelectedSubmission(null);
+      setSelectedAssignment(null);
+
+    } catch (error) {
+      console.error('Error submitting grade:', error);
+      toast({
+        title: "Failed to submit grade",
+        description: "Please try again.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -322,7 +378,12 @@ export default function TeacherDashboard() {
                           </Button>
                           {submission.status === 'submitted' && (
                             <Button size="sm">
-                              Grade
+                              <Button 
+                                size="sm"
+                                onClick={() => handleGradeSubmission(submission)}
+                              >
+                                Grade
+                              </Button>
                             </Button>
                           )}
                         </div>
@@ -336,6 +397,17 @@ export default function TeacherDashboard() {
         </main>
 
         <Navigation currentPath="/dashboard/teacher" />
+
+        {/* Grading Modal */}
+        {selectedSubmission && selectedAssignment && (
+          <GradingModal
+            isOpen={gradingModalOpen}
+            onClose={() => setGradingModalOpen(false)}
+            assignment={selectedAssignment}
+            submission={selectedSubmission}
+            onGradeSubmit={handleGradeSubmit}
+          />
+        )}
       </div>
     </ProtectedRoute>
   );

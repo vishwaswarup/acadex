@@ -339,6 +339,16 @@ export const createAssignment = async (assignmentData: Omit<Assignment, 'id' | '
   return docRef.id;
 };
 
+// Create grade
+export const createGrade = async (gradeData: Omit<Grade, 'id' | 'createdAt'>): Promise<string> => {
+  const docRef = await addDoc(collection(db, 'grades'), {
+    ...gradeData,
+    createdAt: Timestamp.now()
+  });
+  
+  return docRef.id;
+};
+
 // Listen to assignments for a specific teacher
 export const listenToTeacherAssignments = (
   teacherId: string,

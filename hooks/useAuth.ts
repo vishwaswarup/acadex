@@ -39,7 +39,7 @@ export const useAuthProvider = (): AuthContextType => {
               streak: 0,
               lastLoggedDate: null,
               xpLevel: 1,
-              role: 'student' as 'student' | 'teacher' // Default role
+              role: undefined // No default role - let user choose
             };
             
             await createUser(newUserData);
@@ -51,13 +51,6 @@ export const useAuthProvider = (): AuthContextType => {
           }
           
           setUser(userData);
-          
-          // Route based on user role after successful login
-          if (userData.role === 'teacher') {
-            router.push('/teacher/dashboard');
-          } else {
-            router.push('/dashboard');
-          }
         } catch (error) {
           console.error('Error fetching user data:', error);
           toast({
@@ -122,9 +115,9 @@ export const useAuthProvider = (): AuthContextType => {
       
       // Route based on role
       if (role === 'teacher') {
-        router.push('/teacher/dashboard');
+        router.push('/dashboard/teacher');
       } else {
-        router.push('/dashboard');
+        router.push('/dashboard/student');
       }
     } catch (error: any) {
       toast({
@@ -146,7 +139,7 @@ export const useAuthProvider = (): AuthContextType => {
         title: "Signed out",
         description: "See you next time!"
       });
-      router.push('/auth');
+      router.push('/');
     } catch (error: any) {
       toast({
         title: "Sign out failed",

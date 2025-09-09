@@ -13,7 +13,7 @@ export interface User {
   streak: number;
   lastLoggedDate: string | null; // ISO date string (yyyy-MM-dd)
   xpLevel?: number;
-  role?: 'student' | 'teacher'; // Added role field for Acadex
+  role?: 'student' | 'teacher' | 'admin'; // Role field for Acadex - optional to allow role selection
   createdAt: string;
   updatedAt: string;
 }
@@ -76,7 +76,7 @@ export interface AuthContextType {
   user: User | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, name: string, role?: 'student' | 'teacher') => Promise<void>;
+  signUp: (email: string, password: string, name: string, role: 'student' | 'teacher') => Promise<void>;
   signOut: () => Promise<void>;
 }
 

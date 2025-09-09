@@ -3,18 +3,39 @@
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home } from 'lucide-react';
+import { Home, Plus, FileText, Users } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
 interface NavigationProps {
   currentPath: string;
 }
 
-const navItems = [
-  { path: '/dashboard', icon: Home, label: 'Dashboard' }
-];
-
 export default function Navigation({ currentPath }: NavigationProps) {
   const currentPagePath = usePathname();
+  const { user } = useAuth();
+
+  // Dynamic navigation based on user role
+  const getNavItems = () => {
+    const baseItems = [
+      { path: '/dashboard', icon: Home, label: 'Dashboard' }
+    ];
+
+    if (user?.role === 'teacher') {
+      return [
+        { path: '/dashboard/teacher', icon: Home, label: 'Dashboard' },
+        { path: '/assignments/create', icon: Plus, label: 'Create' }
+      ];
+    } else if (user?.role === 'student') {
+      return [
+        { path: '/dashboard/student', icon: Home, label: 'Dashboard' },
+        { path: '/assignments', icon: FileText, label: 'Assignments' }
+      ];
+    }
+
+    return baseItems;
+  };
+
+  const navItems = getNavItems();
 
   return (
     <motion.nav
@@ -24,9 +45,10 @@ export default function Navigation({ currentPath }: NavigationProps) {
       className="fixed bottom-0 left-0 right-0 z-50 bg-background/90 backdrop-blur-sm border-t border-border"
     >
       <div className="container mx-auto px-4">
-        <div className="flex items-center justify-center h-16">
+        <div className={`flex items-center h-16 ${navItems.length === 1 ? 'justify-center' : 'justify-around'}`}>
           {navItems.map((item) => {
-            const isActive = currentPagePath === item.path;
+            const isActive = currentPagePath === item.path || 
+              (item.path === '/dashboard' && currentPagePath.startsWith('/dashboard'));
             const Icon = item.icon;
 
             return (

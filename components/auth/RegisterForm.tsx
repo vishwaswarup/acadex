@@ -102,10 +102,11 @@ export default function RegisterForm({ onSuccess }: RegisterFormProps) {
                 <button
                   type="button"
                   onClick={() => setRole('student')}
+                  disabled={isLoading}
                   className={`p-3 rounded-lg border-2 transition-all ${
                     role === 'student'
                       ? 'border-blue-500 bg-blue-50 text-blue-700'
-                      : 'border-gray-200 hover:border-gray-300'
+                      : 'border-gray-200 hover:border-gray-300 disabled:opacity-50'
                   }`}
                 >
                   <BookOpen className="h-5 w-5 mx-auto mb-2" />
@@ -115,10 +116,11 @@ export default function RegisterForm({ onSuccess }: RegisterFormProps) {
                 <button
                   type="button"
                   onClick={() => setRole('teacher')}
+                  disabled={isLoading}
                   className={`p-3 rounded-lg border-2 transition-all ${
                     role === 'teacher'
                       ? 'border-green-500 bg-green-50 text-green-700'
-                      : 'border-gray-200 hover:border-gray-300'
+                      : 'border-gray-200 hover:border-gray-300 disabled:opacity-50'
                   }`}
                 >
                   <GraduationCap className="h-5 w-5 mx-auto mb-2" />
