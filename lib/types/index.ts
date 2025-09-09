@@ -1,26 +1,25 @@
-// TODO: Update branding for Acadex
-// Replace all "FitTrack" references with "Acadex"
-// Tagline should be: "Grade smarter."
-// Sign-in/Register page text should be updated to:
+// ===== BRANDING =====
+// Project: Acadex
+// Tagline: "Grade smarter."
+// Sign-in/Register page text:
 // Title: "Join Acadex"
 // Subtitle: "Create your account and start managing your assignments smarter."
 
 export type UserRole = 'student' | 'teacher' | 'admin';
 
-// Legacy fitness user interface (kept for backward compatibility)
+// ===== USER MODELS =====
+
+// Core user model for Acadex
 export interface User {
   uid: string;
   email: string;
   name: string;
-  streak: number;
-  lastLoggedDate: string | null; // ISO date string (yyyy-MM-dd)
-  xpLevel?: number;
-  role?: UserRole; // Role field for Acadex - optional to allow role selection
+  role: UserRole; // Explicit role required
   createdAt: string;
   updatedAt: string;
 }
 
-// New education domain user interface
+// Simplified education domain user interface
 export interface EducationUser {
   id: string;
   name: string;
@@ -31,27 +30,34 @@ export interface EducationUser {
   updatedAt: string;
 }
 
-export interface Exercise {
-  name: string;
-  sets: number;
-  reps: number;
-}
-
-export interface StreakUpdateResult {
-  newStreak: number;
-  canLog: boolean;
-  message: string;
-}
-
+// ===== AUTH CONTEXT =====
 export interface AuthContextType {
   user: User | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, name: string, role: 'student' | 'teacher') => Promise<void>;
+  signUp: (
+    email: string,
+    password: string,
+    name: string,
+    role: 'student' | 'teacher'
+  ) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
-// ===== EDUCATION DOMAIN TYPES =====
+export interface EducationAuthContextType {
+  user: EducationUser | null;
+  loading: boolean;
+  signIn: (email: string, password: string) => Promise<void>;
+  signUp: (
+    email: string,
+    password: string,
+    name: string,
+    role: 'student' | 'teacher'
+  ) => Promise<void>;
+  signOut: () => Promise<void>;
+}
+
+// ===== ACADEX DOMAIN TYPES =====
 
 // Question interface for assignments
 export interface Question {
@@ -68,8 +74,8 @@ export interface Assignment {
   description: string;
   dueDate: string; // ISO timestamp
   questions: Question[];
-  totalQuestions: number; // Total number of questions (for easier querying)
-  createdBy: string; // Teacher UID who created the assignment
+  totalQuestions: number;
+  createdBy: string; // Teacher UID
   createdAt: string;
   updatedAt: string;
 }
@@ -110,7 +116,7 @@ export interface Grade {
   createdAt: string;
 }
 
-// Class interface (for future use)
+// Class interface
 export interface Class {
   id: string;
   name: string;
@@ -118,13 +124,4 @@ export interface Class {
   studentIds: string[];
   createdAt: string;
   updatedAt: string;
-}
-
-// Education Auth Context Type
-export interface EducationAuthContextType {
-  user: EducationUser | null;
-  loading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, name: string, role: 'student' | 'teacher') => Promise<void>;
-  signOut: () => Promise<void>;
 }
