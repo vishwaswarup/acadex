@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
 
     const submissionsSnapshot = await getDocs(submissionsQuery);
     const submissions: Submission[] = submissionsSnapshot.docs.map(doc => {
-      const data = doc.data();
+      const data = doc.data() as Submission;
       return {
         id: doc.id,
         assignmentId: data.assignmentId,
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
         files: data.files || [],
         submittedAt: data.submittedAt,
         status: data.status || 'draft',
-        createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+        createdAt: data.createdAt,
       };
     });
 
