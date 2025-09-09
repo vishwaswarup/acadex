@@ -1,42 +1,52 @@
 "use client";
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import ProtectedRoute from '@/components/auth/ProtectedRoute';
-import { useAuth } from '@/hooks/useAuth';
-import LoadingSpinner from '@/components/common/LoadingSpinner';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { GraduationCap, BookOpen } from 'lucide-react';
+import { useState, useEffect } from "react";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import LoadingSpinner from "@/components/common/LoadingSpinner";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { BookOpen } from "lucide-react";
+import { listenToTeacherAssignments, listenToSubmissionsForTeacher } from "@/lib/firebase/firestore";
+import { Assignment, Submission } from "@/lib/types";
+import { useAuth } from "@/hooks/useAuth";
 
-export default function DashboardPage() {
-  const { user, loading } = useAuth();
-  const router = useRouter();
-  const [selectedRole, setSelectedRole] = useState<'student' | 'teacher' | null>(null);
+export default function TeacherDashboardPage() {
+  const { user } = useAuth();
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!loading && user && user.role) {
-      // If user has a role in Firestore, redirect automatically
-      if (user.role === 'teacher') {
-        router.push('/dashboard/teacher');
-      } else {
-        router.push('/dashboard/student');
-      }
-    }
-  }, [user, loading, router]);
+    if (!user?.uid) return;
 
-  const handleRoleSelection = (role: 'student' | 'teacher') => {
-    setSelectedRole(role);
-    if (role === 'teacher') {
-      router.push('/dashboard/teacher');
-    } else {
-      router.push('/dashboard/student');
-    }
-  };
+    const unsubAssignments = listenToTeacherAssignments(
+      user.uid,
+      (data) => {
+        setAssignments(data);
+        setLoading(false);
+      },
+      (error) => {
+        console.error("Error listening to assignments:", error);
+        setLoading(false);
+      }
+    );
+
+    // Listen to submissions once we know assignments
+    const unsubSubmissions = listenToSubmissionsForTeacher(
+      assignments.map((a) => a.id),
+      (data) => setSubmissions(data),
+      (error) => console.error("Error listening to submissions:", error)
+    );
+
+    return () => {
+      unsubAssignments();
+      unsubSubmissions();
+    };
+  }, [user?.uid, assignments.map((a) => a.id).join(",")]);
 
   if (loading) {
     return (
-      <ProtectedRoute>
+      <ProtectedRoute role="teacher">
         <div className="min-h-screen flex items-center justify-center">
           <LoadingSpinner />
         </div>
@@ -44,57 +54,56 @@ export default function DashboardPage() {
     );
   }
 
-  // If user has a role, show loading while redirecting
-  if (user?.role) {
-    return (
-      <ProtectedRoute>
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <LoadingSpinner />
-            <p className="mt-4 text-muted-foreground">Redirecting to your dashboard...</p>
-          </div>
-        </div>
-      </ProtectedRoute>
-    );
-  }
-
-  // Show role selection for users without a role
   return (
-    <ProtectedRoute>
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-full max-w-md mx-auto p-6">
-          <Card>
-            <CardHeader className="text-center">
-              <CardTitle className="text-2xl font-bold">Choose Your Role</CardTitle>
-              <p className="text-muted-foreground">Select how you'll be using Acadex</p>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Button
-                onClick={() => handleRoleSelection('student')}
-                className="w-full h-20 flex flex-col items-center justify-center space-y-2"
-                variant="outline"
-              >
-                <BookOpen className="h-8 w-8 text-blue-600" />
-                <div>
-                  <div className="font-semibold">Student</div>
-                  <div className="text-sm text-muted-foreground">Submit assignments</div>
-                </div>
-              </Button>
-              
-              <Button
-                onClick={() => handleRoleSelection('teacher')}
-                className="w-full h-20 flex flex-col items-center justify-center space-y-2"
-                variant="outline"
-              >
-                <GraduationCap className="h-8 w-8 text-green-600" />
-                <div>
-                  <div className="font-semibold">Teacher</div>
-                  <div className="text-sm text-muted-foreground">Grade assignments</div>
-                </div>
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
+    <ProtectedRoute role="teacher">
+      <div className="min-h-screen p-6">
+        <h1 className="text-3xl font-bold mb-6">Teacher Dashboard</h1>
+
+        {/* Assignments Section */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Your Assignments</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {assignments.length === 0 ? (
+              <p className="text-muted-foreground">No assignments yet.</p>
+            ) : (
+              <ul className="space-y-2">
+                {assignments.map((a) => (
+                  <li key={a.id} className="flex justify-between items-center border p-3 rounded-lg">
+                    <span>{a.title}</span>
+                    <Button size="sm" variant="outline">
+                      View
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Submissions Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Submissions</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {submissions.length === 0 ? (
+              <p className="text-muted-foreground">No submissions yet.</p>
+            ) : (
+              <ul className="space-y-2">
+                {submissions.map((s) => (
+                  <li key={s.id} className="flex justify-between items-center border p-3 rounded-lg">
+                    <span>
+                      {s.studentId} – {new Date(s.submittedAt).toLocaleString()}
+                    </span>
+                    <Button size="sm">Grade</Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </ProtectedRoute>
   );
