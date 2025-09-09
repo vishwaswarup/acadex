@@ -137,6 +137,9 @@ export const createWorkoutLog = async (log: Omit<WorkoutLog, 'id' | 'createdAt'>
   const docRef = await addDoc(collection(db, WORKOUT_LOGS_COLLECTION), {
     ...log,
     createdAt: Timestamp.now()
+  }
+  )
+}
 // ===== EDUCATION DOMAIN FUNCTIONS =====
 
 // Real-time listeners for assignments and submissions
