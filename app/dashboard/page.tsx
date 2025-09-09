@@ -1,52 +1,64 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import ProtectedRoute from "@/components/auth/ProtectedRoute";
-import LoadingSpinner from "@/components/common/LoadingSpinner";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { useAuth } from "@/hooks/useAuth";
-import { listenToTeacherAssignments, listenToSubmissionsForTeacher } from "@/lib/firebase/firestore";
-import { Assignment, Submission } from "@/lib/types";
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import ProtectedRoute from '@/components/auth/ProtectedRoute';
+import { useAuth } from '@/hooks/useAuth';
+import LoadingSpinner from '@/components/common/LoadingSpinner';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Assignment, Submission } from '@/lib/types';
+import { listenToTeacherAssignments, listenToSubmissionsForTeacher } from '@/lib/firebase/firestore';
 
-export default function TeacherDashboardPage() {
-  const { user } = useAuth();
+export default function DashboardTeacherPage() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadingData, setLoadingData] = useState(true);
 
   useEffect(() => {
-    if (!user?.uid) return;
+    if (!loading && user?.role !== 'teacher') {
+      router.push('/dashboard/student');
+    }
+  }, [user, loading, router]);
 
-    const unsubAssignments = listenToTeacherAssignments(
+  useEffect(() => {
+    if (!user) return;
+
+    setLoadingData(true);
+
+    const unsubscribeAssignments = listenToTeacherAssignments(
       user.uid,
       (data) => {
         setAssignments(data);
-        setLoading(false);
 
-        // Fetch submissions for all teacher assignments
+        // Once we have assignments, listen to submissions
         const assignmentIds = data.map(a => a.id);
-        const unsubSubmissions = listenToSubmissionsForTeacher(
+        const unsubscribeSubmissions = listenToSubmissionsForTeacher(
           assignmentIds,
-          (subs) => setSubmissions(subs),
-          (error) => console.error("Error fetching submissions:", error)
+          (subData) => {
+            setSubmissions(subData);
+            setLoadingData(false);
+          },
+          (err) => {
+            console.error('Error fetching submissions:', err);
+            setLoadingData(false);
+          }
         );
 
-        // Cleanup for submissions listener
-        return () => unsubSubmissions();
+        return () => unsubscribeSubmissions();
       },
-      (error) => {
-        console.error("Error fetching teacher assignments:", error);
-        setLoading(false);
+      (err) => {
+        console.error('Error fetching assignments:', err);
+        setLoadingData(false);
       }
     );
 
-    return () => {
-      unsubAssignments();
-    };
-  }, [user?.uid]);
+    return () => unsubscribeAssignments();
+  }, [user]);
 
-  if (loading) {
+  if (loading || loadingData) {
     return (
       <ProtectedRoute role="teacher">
         <div className="min-h-screen flex items-center justify-center">
@@ -61,51 +73,46 @@ export default function TeacherDashboardPage() {
       <div className="min-h-screen p-6">
         <h1 className="text-3xl font-bold mb-6">Teacher Dashboard</h1>
 
-        {/* Assignments Section */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Your Assignments</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {assignments.length === 0 ? (
-              <p className="text-muted-foreground">You haven't created any assignments yet.</p>
-            ) : (
-              <ul className="space-y-2">
-                {assignments.map((a) => (
-                  <li key={a.id} className="flex justify-between items-center border p-3 rounded-lg">
-                    <span>{a.title}</span>
-                    <Button size="sm" variant="outline">
-                      View
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Total Assignments</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xl font-semibold">{assignments.length}</p>
+            </CardContent>
+          </Card>
 
-        {/* Submissions Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Student Submissions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {submissions.length === 0 ? (
-              <p className="text-muted-foreground">No submissions yet.</p>
-            ) : (
-              <ul className="space-y-2">
-                {submissions.map((s) => (
-                  <li key={s.id} className="flex justify-between items-center border p-3 rounded-lg">
-                    <span>
-                      {s.assignmentId} – {new Date(s.submittedAt).toLocaleString()} – {s.status}
-                    </span>
-                    <Button size="sm">View</Button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Total Submissions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xl font-semibold">{submissions.length}</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="mt-8">
+          <h2 className="text-2xl font-bold mb-4">Your Assignments</h2>
+          <div className="space-y-4">
+            {assignments.map((a) => (
+              <Card key={a.id}>
+                <CardHeader>
+                  <CardTitle>{a.title}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p>{a.description}</p>
+                  <p className="text-sm text-muted-foreground">Due: {new Date(a.dueDate).toLocaleDateString()}</p>
+                  <p className="text-sm text-muted-foreground">Submissions: {submissions.filter(s => s.assignmentId === a.id).length}</p>
+                  <Button className="mt-2" onClick={() => router.push(`/dashboard/teacher/assignments/${a.id}`)}>
+                    View Submissions
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
       </div>
     </ProtectedRoute>
   );
