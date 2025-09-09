@@ -35,6 +35,8 @@ export async function GET(request: NextRequest) {
         description: data.description,
         dueDate: data.dueDate,
         questions: data.questions || [],
+        totalQuestions: data.totalQuestions || (data.questions || []).length,
+        createdBy: data.createdBy,
         createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
         updatedAt: data.updatedAt?.toDate?.()?.toISOString() || new Date().toISOString(),
       };
@@ -82,6 +84,8 @@ export async function POST(request: NextRequest) {
       description,
       dueDate,
       questions,
+      totalQuestions: questions.length,
+      createdBy: userId,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     };
