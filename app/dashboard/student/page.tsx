@@ -13,8 +13,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Calendar, FileText, Upload, Clock, CheckCircle } from 'lucide-react';
 import { Assignment, Submission, SubmissionFile } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { listenToAssignments, listenToSubmissions, createSubmission } from '@/lib/firebase/firestore';
+import { createSubmission } from '@/lib/firebase/firestore';
 import { useAuth } from '@/hooks/useAuth';
+import { useStudentAssignments } from '@/lib/hooks/useAssignments';
 
 // Demo assignments for UI showcasing when no real assignments exist
 const DEMO_ASSIGNMENTS: Assignment[] = [
@@ -69,9 +70,7 @@ const DEMO_ASSIGNMENTS: Assignment[] = [
 ];
 
 export default function StudentDashboard() {
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
-  const [submissions, setSubmissions] = useState<Submission[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { assignments, submissions, loading } = useStudentAssignments();
   const [submissionModalOpen, setSubmissionModalOpen] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
   const [isShowingDemoData, setIsShowingDemoData] = useState(false);
@@ -81,73 +80,16 @@ export default function StudentDashboard() {
 
   // Real-time Firestore listeners
   useEffect(() => {
-    if (!user) return;
+    // Show demo data if no real assignments
+    if (!loading && assignments.length === 0) {
+      setIsShowingDemoData(true);
+    } else {
+      setIsShowingDemoData(false);
+    }
+  }, [assignments, loading]);
 
-    setLoading(true);
-    let assignmentsLoaded = false;
-    let submissionsLoaded = false;
-
-    const checkLoadingComplete = () => {
-      if (assignmentsLoaded && submissionsLoaded) {
-        setLoading(false);
-      }
-    };
-
-    // Listen to assignments
-    const unsubscribeAssignments = listenToAssignments(
-      (assignmentsData) => {
-        // If no real assignments found, show demo data for UI showcasing
-        if (assignmentsData.length === 0) {
-          setAssignments(DEMO_ASSIGNMENTS);
-          setIsShowingDemoData(true);
-        } else {
-          setAssignments(assignmentsData);
-          setIsShowingDemoData(false);
-        }
-        assignmentsLoaded = true;
-        checkLoadingComplete();
-      },
-      (error) => {
-        console.error('Error loading assignments:', error);
-        // On error, also show demo data as fallback
-        setAssignments(DEMO_ASSIGNMENTS);
-        setIsShowingDemoData(true);
-        toast({
-          title: "Error loading assignments",
-          description: "Showing demo data. Please refresh the page to try again.",
-          variant: "destructive"
-        });
-        assignmentsLoaded = true;
-        checkLoadingComplete();
-      }
-    );
-
-    // Listen to submissions for this student
-    const unsubscribeSubmissions = listenToSubmissions(
-      user.uid,
-      (submissionsData) => {
-        setSubmissions(submissionsData);
-        submissionsLoaded = true;
-        checkLoadingComplete();
-      },
-      (error) => {
-        console.error('Error loading submissions:', error);
-        toast({
-          title: "Error loading submissions",
-          description: "Failed to load submissions. Please refresh the page.",
-          variant: "destructive"
-        });
-        submissionsLoaded = true;
-        checkLoadingComplete();
-      }
-    );
-
-    // Cleanup listeners on unmount
-    return () => {
-      unsubscribeAssignments();
-      unsubscribeSubmissions();
-    };
-  }, [user, toast]);
+  // Use demo data if showing demo
+  const displayAssignments = isShowingDemoData ? DEMO_ASSIGNMENTS : assignments;
 
   const getSubmissionStatus = (assignmentId: string) => {
     const submission = submissions.find(sub => sub.assignmentId === assignmentId);
@@ -333,7 +275,7 @@ export default function StudentDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {assignments.length === 0 ? (
+                {displayAssignments.length === 0 ? (
                   <div className="text-center py-8">
                     <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                     <p className="text-muted-foreground">No assignments yet</p>
@@ -342,7 +284,7 @@ export default function StudentDashboard() {
                     </p>
                   </div>
                 ) : (
-                  assignments.map((assignment) => {
+                  displayAssignments.map((assignment) => {
                   const status = getSubmissionStatus(assignment.id);
                   const overdue = isOverdue(assignment.dueDate);
                   const isDemoAssignment = isShowingDemoData && assignment.id.startsWith('demo');
@@ -422,7 +364,7 @@ export default function StudentDashboard() {
                   <p className="text-muted-foreground text-center py-4">No submissions yet</p>
                 ) : (
                   submissions.map((submission) => {
-                    const assignment = assignments.find(a => a.id === submission.assignmentId);
+                    const assignment = displayAssignments.find(a => a.id === submission.assignmentId);
                     return (
                       <div key={submission.id} className="flex items-center justify-between p-4 border rounded-lg">
                         <div className="flex-1">

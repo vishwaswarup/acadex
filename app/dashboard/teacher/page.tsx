@@ -11,9 +11,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, FileText, Users, CheckCircle, Clock, Plus } from 'lucide-react';
 import { Assignment, Submission, QuestionMark } from '@/lib/types';
-import { listenToTeacherAssignments, listenToAllSubmissions } from '@/lib/firebase/firestore';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { useTeacherAssignments } from '@/lib/hooks/useAssignments';
 
 // Demo assignments for UI showcasing when no real assignments exist
 const DEMO_TEACHER_ASSIGNMENTS: Assignment[] = [
@@ -55,9 +55,7 @@ export default function TeacherDashboard() {
   const router = useRouter();
   const { user } = useAuth();
   const { toast } = useToast();
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
-  const [submissions, setSubmissions] = useState<Submission[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { assignments, submissions, loading } = useTeacherAssignments();
   const [isShowingDemoData, setIsShowingDemoData] = useState(false);
   const [gradingModalOpen, setGradingModalOpen] = useState(false);
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
@@ -65,73 +63,16 @@ export default function TeacherDashboard() {
 
   // Real-time Firestore listeners
   useEffect(() => {
-    if (!user) return;
+    // Show demo data if no real assignments
+    if (!loading && assignments.length === 0) {
+      setIsShowingDemoData(true);
+    } else {
+      setIsShowingDemoData(false);
+    }
+  }, [assignments, loading]);
 
-    setLoading(true);
-    let assignmentsLoaded = false;
-    let submissionsLoaded = false;
-
-    const checkLoadingComplete = () => {
-      if (assignmentsLoaded && submissionsLoaded) {
-        setLoading(false);
-      }
-    };
-
-    // Listen to teacher's assignments
-    const unsubscribeAssignments = listenToTeacherAssignments(
-      user.uid,
-      (assignmentsData) => {
-        // If no real assignments found, show demo data for UI showcasing
-        if (assignmentsData.length === 0) {
-          setAssignments(DEMO_TEACHER_ASSIGNMENTS);
-          setIsShowingDemoData(true);
-        } else {
-          setAssignments(assignmentsData);
-          setIsShowingDemoData(false);
-        }
-        assignmentsLoaded = true;
-        checkLoadingComplete();
-      },
-      (error) => {
-        console.error('Error loading assignments:', error);
-        // On error, also show demo data as fallback
-        setAssignments(DEMO_TEACHER_ASSIGNMENTS);
-        setIsShowingDemoData(true);
-        toast({
-          title: "Error loading assignments",
-          description: "Showing demo data. Please refresh the page to try again.",
-          variant: "destructive"
-        });
-        assignmentsLoaded = true;
-        checkLoadingComplete();
-      }
-    );
-
-    // Listen to all submissions (for demo purposes, in real app would filter by teacher's assignments)
-    const unsubscribeSubmissions = listenToAllSubmissions(
-      (submissionsData) => {
-        setSubmissions(submissionsData);
-        submissionsLoaded = true;
-        checkLoadingComplete();
-      },
-      (error) => {
-        console.error('Error loading submissions:', error);
-        toast({
-          title: "Error loading submissions",
-          description: "Failed to load submissions. Please refresh the page.",
-          variant: "destructive"
-        });
-        submissionsLoaded = true;
-        checkLoadingComplete();
-      }
-    );
-
-    // Cleanup listeners on unmount
-    return () => {
-      unsubscribeAssignments();
-      unsubscribeSubmissions();
-    };
-  }, [user, toast]);
+  // Use demo data if showing demo
+  const displayAssignments = isShowingDemoData ? DEMO_TEACHER_ASSIGNMENTS : assignments;
 
   const getAssignmentStats = (assignmentId: string) => {
     const assignmentSubmissions = submissions.filter(sub => sub.assignmentId === assignmentId);
@@ -237,7 +178,7 @@ export default function TeacherDashboard() {
                       Total Assignments
                       {isShowingDemoData && <span className="text-xs text-muted-foreground"> (Demo)</span>}
                     </p>
-                    <p className="text-2xl font-bold">{assignments.length}</p>
+                    <p className="text-2xl font-bold">{displayAssignments.length}</p>
                   </div>
                 </div>
               </CardContent>
@@ -311,7 +252,7 @@ export default function TeacherDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {assignments.map((assignment) => {
+                {displayAssignments.map((assignment) => {
                   const stats = getAssignmentStats(assignment.id);
                   
                   return (
@@ -362,7 +303,7 @@ export default function TeacherDashboard() {
                   <p className="text-muted-foreground text-center py-4">No submissions yet</p>
                 ) : (
                   submissions.map((submission) => {
-                    const assignment = assignments.find(a => a.id === submission.assignmentId);
+                    const assignment = displayAssignments.find(a => a.id === submission.assignmentId);
                     return (
                       <div key={submission.id} className="flex items-center justify-between p-4 border rounded-lg">
                         <div className="flex-1">
@@ -377,13 +318,11 @@ export default function TeacherDashboard() {
                             Download
                           </Button>
                           {submission.status === 'submitted' && (
-                            <Button size="sm">
-                              <Button 
-                                size="sm"
-                                onClick={() => handleGradeSubmission(submission)}
-                              >
-                                Grade
-                              </Button>
+                            <Button 
+                              size="sm"
+                              onClick={() => handleGradeSubmission(submission)}
+                            >
+                              Grade
                             </Button>
                           )}
                         </div>

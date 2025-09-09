@@ -18,14 +18,13 @@ import {
   Unsubscribe
 } from 'firebase/firestore';
 import { db } from './config';
-import { User, WorkoutSplit, WorkoutLog, Assignment, Submission } from '@/lib/types';
+import { User, Assignment, Submission, Grade } from '@/lib/types';
 
 // Collections
 export const USERS_COLLECTION = 'users';
-export const WORKOUT_SPLITS_COLLECTION = 'workoutSplits';
-export const WORKOUT_LOGS_COLLECTION = 'workoutLogs';
 export const ASSIGNMENTS_COLLECTION = 'assignments';
 export const SUBMISSIONS_COLLECTION = 'submissions';
+export const GRADES_COLLECTION = 'grades';
 
 // Helper function to convert Firestore timestamp to ISO string
 const timestampToISO = (timestamp: Timestamp): string => {
@@ -138,77 +137,6 @@ export const createWorkoutLog = async (log: Omit<WorkoutLog, 'id' | 'createdAt'>
   const docRef = await addDoc(collection(db, WORKOUT_LOGS_COLLECTION), {
     ...log,
     createdAt: Timestamp.now()
-  });
-  
-  return docRef.id;
-};
-
-export const getUserWorkoutLogs = async (uid: string, startDate?: string, endDate?: string): Promise<WorkoutLog[]> => {
-  let q = query(
-    collection(db, WORKOUT_LOGS_COLLECTION),
-    where('uid', '==', uid),
-    orderBy('date', 'desc')
-  );
-  
-  const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map(doc => {
-    const data = doc.data();
-    return {
-      ...data,
-      id: doc.id,
-      createdAt: timestampToISO(data.createdAt)
-    } as WorkoutLog;
-  });
-};
-
-export const getWorkoutLogByDate = async (uid: string, date: string): Promise<WorkoutLog | null> => {
-  const q = query(
-    collection(db, WORKOUT_LOGS_COLLECTION),
-    where('uid', '==', uid),
-    where('date', '==', date),
-    limit(1)
-  );
-  
-  const querySnapshot = await getDocs(q);
-  if (!querySnapshot.empty) {
-    const doc = querySnapshot.docs[0];
-    const data = doc.data();
-    return {
-      ...data,
-      id: doc.id,
-      createdAt: timestampToISO(data.createdAt)
-    } as WorkoutLog;
-  }
-  
-  return null;
-};
-
-// Atomic streak update
-export const updateUserStreakAtomic = async (
-  uid: string,
-  newStreak: number,
-  lastLoggedDate: string,
-  workoutLogData: Omit<WorkoutLog, 'id' | 'createdAt'>
-): Promise<void> => {
-  await runTransaction(db, async (transaction) => {
-    const userRef = doc(db, USERS_COLLECTION, uid);
-    const logRef = doc(collection(db, WORKOUT_LOGS_COLLECTION));
-    
-    // Update user streak
-    transaction.update(userRef, {
-      streak: newStreak,
-      lastLoggedDate: lastLoggedDate,
-      updatedAt: Timestamp.now()
-    });
-    
-    // Create workout log
-    transaction.set(logRef, {
-      ...workoutLogData,
-      createdAt: Timestamp.now()
-    });
-  });
-};
-
 // ===== EDUCATION DOMAIN FUNCTIONS =====
 
 // Real-time listeners for assignments and submissions
@@ -341,7 +269,7 @@ export const createAssignment = async (assignmentData: Omit<Assignment, 'id' | '
 
 // Create grade
 export const createGrade = async (gradeData: Omit<Grade, 'id' | 'createdAt'>): Promise<string> => {
-  const docRef = await addDoc(collection(db, 'grades'), {
+  const docRef = await addDoc(collection(db, GRADES_COLLECTION), {
     ...gradeData,
     createdAt: Timestamp.now()
   });

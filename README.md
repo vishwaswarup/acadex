@@ -92,29 +92,31 @@ The app will be available at `http://localhost:3000`.
 
 ```
 app/
+├── api/                 # API endpoints
+│   ├── assignments/
+│   ├── submissions/
+│   ├── upload/
+│   └── grades/
 ├── dashboard/
 │   ├── student/          # Student dashboard
 │   └── teacher/          # Teacher dashboard
 ├── assignments/
 │   ├── [id]/            # Assignment detail view
-│   ├── [id]/submissions/ # Grade submissions
+│   ├── page.tsx         # All assignments list
 │   └── create/          # Create assignment
-├── submissions/          # Submission history
-└── api/                 # API endpoints
-    ├── assignments.ts
-    ├── submissions.ts
-    ├── upload.ts
-    └── grades.ts
+├── auth/                # Authentication pages
+└── settings/            # User settings
 
 components/
 ├── assignment/           # Assignment-related components
 ├── auth/                # Authentication components
-├── dashboard/           # Dashboard widgets
 ├── common/              # Shared components
 └── ui/                  # shadcn/ui components
 
 lib/
 ├── firebase/            # Firebase configuration
+├── services/            # Business logic services
+├── hooks/               # Custom React hooks
 ├── types/               # TypeScript definitions
 └── utils/               # Utility functions
 
