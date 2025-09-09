@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
 
     const gradesSnapshot = await getDocs(gradesQuery);
     const grades: Grade[] = gradesSnapshot.docs.map(doc => {
-      const data = doc.data();
+      const data = doc.data() as Grade;
       return {
         id: doc.id,
         submissionId: data.submissionId,
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
         total: data.total || 0,
         feedback: data.feedback || '',
         gradedAt: data.gradedAt,
-        createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+        createdAt: data.createdAt,
       };
     });
 
