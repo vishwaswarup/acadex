@@ -1,14 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BookOpen } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 import { listenToTeacherAssignments, listenToSubmissionsForTeacher } from "@/lib/firebase/firestore";
 import { Assignment, Submission } from "@/lib/types";
-import { useAuth } from "@/hooks/useAuth";
 
 export default function TeacherDashboardPage() {
   const { user } = useAuth();
@@ -24,25 +23,28 @@ export default function TeacherDashboardPage() {
       (data) => {
         setAssignments(data);
         setLoading(false);
+
+        // Fetch submissions for all teacher assignments
+        const assignmentIds = data.map(a => a.id);
+        const unsubSubmissions = listenToSubmissionsForTeacher(
+          assignmentIds,
+          (subs) => setSubmissions(subs),
+          (error) => console.error("Error fetching submissions:", error)
+        );
+
+        // Cleanup for submissions listener
+        return () => unsubSubmissions();
       },
       (error) => {
-        console.error("Error listening to assignments:", error);
+        console.error("Error fetching teacher assignments:", error);
         setLoading(false);
       }
     );
 
-    // Listen to submissions once we know assignments
-    const unsubSubmissions = listenToSubmissionsForTeacher(
-      assignments.map((a) => a.id),
-      (data) => setSubmissions(data),
-      (error) => console.error("Error listening to submissions:", error)
-    );
-
     return () => {
       unsubAssignments();
-      unsubSubmissions();
     };
-  }, [user?.uid, assignments.map((a) => a.id).join(",")]);
+  }, [user?.uid]);
 
   if (loading) {
     return (
@@ -66,7 +68,7 @@ export default function TeacherDashboardPage() {
           </CardHeader>
           <CardContent>
             {assignments.length === 0 ? (
-              <p className="text-muted-foreground">No assignments yet.</p>
+              <p className="text-muted-foreground">You haven't created any assignments yet.</p>
             ) : (
               <ul className="space-y-2">
                 {assignments.map((a) => (
@@ -85,7 +87,7 @@ export default function TeacherDashboardPage() {
         {/* Submissions Section */}
         <Card>
           <CardHeader>
-            <CardTitle>Recent Submissions</CardTitle>
+            <CardTitle>Student Submissions</CardTitle>
           </CardHeader>
           <CardContent>
             {submissions.length === 0 ? (
@@ -95,9 +97,9 @@ export default function TeacherDashboardPage() {
                 {submissions.map((s) => (
                   <li key={s.id} className="flex justify-between items-center border p-3 rounded-lg">
                     <span>
-                      {s.studentId} – {new Date(s.submittedAt).toLocaleString()}
+                      {s.assignmentId} – {new Date(s.submittedAt).toLocaleString()} – {s.status}
                     </span>
-                    <Button size="sm">Grade</Button>
+                    <Button size="sm">View</Button>
                   </li>
                 ))}
               </ul>
