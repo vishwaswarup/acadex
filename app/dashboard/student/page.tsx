@@ -187,7 +187,7 @@ export default function StudentDashboard() {
 
   if (loading) {
     return (
-      <ProtectedRoute>
+      <ProtectedRoute role="student">
         <div className="min-h-screen pb-20">
           <Header title="Student Dashboard" />
           <div className="container mx-auto p-6">
@@ -199,7 +199,7 @@ export default function StudentDashboard() {
   }
 
   return (
-    <ProtectedRoute>
+    <ProtectedRoute role="student">
       <div className="min-h-screen pb-20">
         <Header title="Student Dashboard" />
 

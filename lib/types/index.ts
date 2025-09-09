@@ -5,6 +5,8 @@
 // Title: "Join Acadex"
 // Subtitle: "Create your account and start managing your assignments smarter."
 
+export type UserRole = 'student' | 'teacher' | 'admin';
+
 // Legacy fitness user interface (kept for backward compatibility)
 export interface User {
   uid: string;
@@ -13,7 +15,7 @@ export interface User {
   streak: number;
   lastLoggedDate: string | null; // ISO date string (yyyy-MM-dd)
   xpLevel?: number;
-  role?: 'student' | 'teacher' | 'admin'; // Role field for Acadex - optional to allow role selection
+  role?: UserRole; // Role field for Acadex - optional to allow role selection
   createdAt: string;
   updatedAt: string;
 }
@@ -35,36 +37,6 @@ export interface Exercise {
   reps: number;
 }
 
-export interface WorkoutDay {
-  day: number; // 1-7 (1 = Day 1)
-  exercises: Exercise[];
-}
-
-export interface WorkoutSplit {
-  id: string;
-  uid: string;
-  name: string;
-  daysPerWeek: number;
-  days: WorkoutDay[];
-  isTemplate?: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface WorkoutLog {
-  id: string;
-  uid: string;
-  date: string; // ISO date string (yyyy-MM-dd)
-  splitId: string;
-  completed: boolean;
-  createdAt: string;
-}
-
-export interface WorkoutSplitTemplate {
-  name: string;
-  daysPerWeek: number;
-  days: WorkoutDay[];
-}
 
 export interface StreakUpdateResult {
   newStreak: number;

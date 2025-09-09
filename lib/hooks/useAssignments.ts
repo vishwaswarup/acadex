@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Assignment, Submission } from '@/lib/types';
-import { listenToAssignments, listenToSubmissions, listenToTeacherAssignments, listenToAllSubmissions } from '@/lib/firebase/firestore';
+import { listenToAssignments, listenToSubmissions, listenToTeacherAssignments, listenToSubmissionsForTeacher } from '@/lib/firebase/firestore';
 import { useAuth } from '@/hooks/useAuth';
 
 export function useStudentAssignments() {
@@ -65,48 +65,46 @@ export function useTeacherAssignments() {
   const { user } = useAuth();
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
 
     setLoading(true);
-    let assignmentsLoaded = false;
-    let submissionsLoaded = false;
-
-    const checkLoadingComplete = () => {
-      if (assignmentsLoaded && submissionsLoaded) {
-        setLoading(false);
-      }
-    };
 
     const unsubscribeAssignments = listenToTeacherAssignments(
       user.uid,
-      (assignmentsData) => {
-        setAssignments(assignmentsData);
-        assignmentsLoaded = true;
-        checkLoadingComplete();
-      },
-      (error) => {
-        console.error('Error loading assignments:', error);
-        assignmentsLoaded = true;
-        checkLoadingComplete();
-      }
-    );
+      (newAssignments) => {
+        setAssignments(newAssignments);
+        setLoading(false); // Stop loading after assignments are fetched
 
-    const unsubscribeSubmissions = listenToAllSubmissions(
-      (submissionsData) => {
-        setSubmissions(submissionsData);
-        submissionsLoaded = true;
-        checkLoadingComplete();
+        // Now, listen for submissions related to these assignments
+        const assignmentIds = newAssignments.map(a => a.id);
+        if (assignmentIds.length > 0) {
+          const unsubscribeSubmissions = listenToSubmissionsForTeacher(
+            assignmentIds,
+            (newSubmissions) => {
+              setSubmissions(newSubmissions);
+            },
+            (error) => {
+              console.error('Error loading submissions for teacher:', error);
+            }
+          );
+          // Return the unsubscribe function for submissions
+          return () => unsubscribeSubmissions();
+        } else {
+          // No assignments, so no submissions
+          setSubmissions([]);
+        }
       },
       (error) => {
-        console.error('Error loading submissions:', error);
-        submissionsLoaded = true;
-        checkLoadingComplete();
+        console.error('Error loading assignments for teacher:', error);
+        setLoading(false);
       }
     );
 
     return () => {
       unsubscribeAssignments();
-      unsubscribeSubmissions();
     };
   }, [user]);
 

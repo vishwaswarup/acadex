@@ -70,76 +70,6 @@ export const updateUser = async (uid: string, updates: Partial<User>): Promise<v
     updatedAt: Timestamp.now()
   });
 };
-
-// Workout Split operations
-export const createWorkoutSplit = async (split: Omit<WorkoutSplit, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> => {
-  const now = Timestamp.now();
-  const docRef = await addDoc(collection(db, WORKOUT_SPLITS_COLLECTION), {
-    ...split,
-    createdAt: now,
-    updatedAt: now
-  });
-  
-  return docRef.id;
-};
-
-export const getUserWorkoutSplits = async (uid: string): Promise<WorkoutSplit[]> => {
-  const q = query(
-    collection(db, WORKOUT_SPLITS_COLLECTION),
-    where('uid', '==', uid),
-    orderBy('createdAt', 'desc')
-  );
-  
-  const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map(doc => {
-    const data = doc.data();
-    return {
-      ...data,
-      id: doc.id,
-      createdAt: timestampToISO(data.createdAt),
-      updatedAt: timestampToISO(data.updatedAt)
-    } as WorkoutSplit;
-  });
-};
-
-export const getWorkoutSplit = async (id: string): Promise<WorkoutSplit | null> => {
-  const splitRef = doc(db, WORKOUT_SPLITS_COLLECTION, id);
-  const splitSnap = await getDoc(splitRef);
-  
-  if (splitSnap.exists()) {
-    const data = splitSnap.data();
-    return {
-      ...data,
-      id: splitSnap.id,
-      createdAt: timestampToISO(data.createdAt),
-      updatedAt: timestampToISO(data.updatedAt)
-    } as WorkoutSplit;
-  }
-  
-  return null;
-};
-
-export const updateWorkoutSplit = async (id: string, updates: Partial<WorkoutSplit>): Promise<void> => {
-  const splitRef = doc(db, WORKOUT_SPLITS_COLLECTION, id);
-  await updateDoc(splitRef, {
-    ...updates,
-    updatedAt: Timestamp.now()
-  });
-};
-
-export const deleteWorkoutSplit = async (id: string): Promise<void> => {
-  const splitRef = doc(db, WORKOUT_SPLITS_COLLECTION, id);
-  await deleteDoc(splitRef);
-};
-
-// Workout Log operations
-export const createWorkoutLog = async (log: Omit<WorkoutLog, 'id' | 'createdAt'>): Promise<string> => {
-  const docRef = await addDoc(collection(db, WORKOUT_LOGS_COLLECTION), {
-    ...log,
-    createdAt: Timestamp.now()
-  }
-  )
-}
 // ===== EDUCATION DOMAIN FUNCTIONS =====
 
 // Real-time listeners for assignments and submissions
@@ -332,47 +262,38 @@ export const listenToTeacherAssignments = (
   );
 };
 
-// Listen to all submissions (for teacher dashboard)
-export const listenToAllSubmissions = (
+// Listen to submissions for a specific set of assignments (for teacher dashboard)
+export const listenToSubmissionsForTeacher = (
+  assignmentIds: string[],
   callback: (submissions: Submission[]) => void,
   onError?: (error: Error) => void
 ): Unsubscribe => {
-  // Try with orderBy first, fallback to simple query if it fails
-  let q;
-  try {
-    q = query(
-      collection(db, SUBMISSIONS_COLLECTION),
-      orderBy('submittedAt', 'desc')
-    );
-  } catch (error) {
-    console.warn('Failed to create ordered submissions query, falling back to simple query:', error);
-    q = query(collection(db, SUBMISSIONS_COLLECTION));
+  if (assignmentIds.length === 0) {
+    callback([]);
+    return () => {}; // Return an empty unsubscribe function
   }
-  
-  return onSnapshot(q, 
+
+  const q = query(
+    collection(db, SUBMISSIONS_COLLECTION),
+    where('assignmentId', 'in', assignmentIds),
+    orderBy('submittedAt', 'desc')
+  );
+
+  return onSnapshot(q,
     (querySnapshot) => {
-      try {
-        const submissions: Submission[] = querySnapshot.docs.map(doc => {
-          const data = doc.data();
-          return {
-            ...data,
-            id: doc.id,
-            submittedAt: data.submittedAt ? timestampToISO(data.submittedAt) : new Date().toISOString(),
-            createdAt: data.createdAt ? timestampToISO(data.createdAt) : new Date().toISOString()
-          } as Submission;
-        });
-        
-        // Sort manually if we couldn't use orderBy
-        submissions.sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
-        
-        callback(submissions);
-      } catch (error) {
-        console.error('Error processing submission data:', error);
-        if (onError) onError(error as Error);
-      }
+      const submissions: Submission[] = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          ...data,
+          id: doc.id,
+          submittedAt: data.submittedAt ? timestampToISO(data.submittedAt) : new Date().toISOString(),
+          createdAt: data.createdAt ? timestampToISO(data.createdAt) : new Date().toISOString()
+        } as Submission;
+      });
+      callback(submissions);
     },
     (error) => {
-      console.error('Error listening to all submissions:', error);
+      console.error('Error listening to teacher submissions:', error);
       if (onError) onError(error);
     }
   );
