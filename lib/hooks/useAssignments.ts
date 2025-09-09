@@ -1,114 +1,103 @@
-import { useState, useEffect } from 'react';
-import { Assignment, Submission } from '@/lib/types';
-import { listenToAssignments, listenToSubmissions, listenToTeacherAssignments, listenToAllSubmissions } from '@/lib/firebase/firestore';
-import { useAuth } from '@/hooks/useAuth';
+import { NextRequest, NextResponse } from 'next/server';
+import { collection, addDoc, getDocs, query, where, orderBy, serverTimestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase/config';
+import { Assignment, Question } from '@/lib/types';
 
-export function useStudentAssignments() {
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
-  const [submissions, setSubmissions] = useState<Submission[]>([]);
-  const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
+// GET /api/assignments - List assignments
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const classId = searchParams.get('classId');
+    const userId = searchParams.get('userId');
 
-  useEffect(() => {
-    if (!user) return;
+    if (!userId) {
+      return NextResponse.json({ error: 'User ID required' }, { status: 400 });
+    }
 
-    setLoading(true);
-    let assignmentsLoaded = false;
-    let submissionsLoaded = false;
+    // Build query based on classId filter
+    let assignmentsQuery = query(collection(db, 'assignments'), orderBy('createdAt', 'desc'));
+    
+    if (classId) {
+      assignmentsQuery = query(
+        collection(db, 'assignments'),
+        where('classId', '==', classId),
+        orderBy('createdAt', 'desc')
+      );
+    }
 
-    const checkLoadingComplete = () => {
-      if (assignmentsLoaded && submissionsLoaded) {
-        setLoading(false);
-      }
-    };
+    const assignmentsSnapshot = await getDocs(assignmentsQuery);
+    const assignments: Assignment[] = assignmentsSnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        title: data.title,
+        classId: data.classId,
+        description: data.description,
+        dueDate: data.dueDate,
+        questions: data.questions || [],
+        totalQuestions: data.totalQuestions || (data.questions || []).length,
+        createdBy: data.createdBy,
+        createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+        updatedAt: data.updatedAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+      };
+    });
 
-    const unsubscribeAssignments = listenToAssignments(
-      (assignmentsData) => {
-        setAssignments(assignmentsData);
-        assignmentsLoaded = true;
-        checkLoadingComplete();
-      },
-      (error) => {
-        console.error('Error loading assignments:', error);
-        assignmentsLoaded = true;
-        checkLoadingComplete();
-      }
-    );
-
-    const unsubscribeSubmissions = listenToSubmissions(
-      user.uid,
-      (submissionsData) => {
-        setSubmissions(submissionsData);
-        submissionsLoaded = true;
-        checkLoadingComplete();
-      },
-      (error) => {
-        console.error('Error loading submissions:', error);
-        submissionsLoaded = true;
-        checkLoadingComplete();
-      }
-    );
-
-    return () => {
-      unsubscribeAssignments();
-      unsubscribeSubmissions();
-    };
-  }, [user]);
-
-  return { assignments, submissions, loading };
+    return NextResponse.json({ assignments });
+  } catch (error) {
+    console.error('Error fetching assignments:', error);
+    return NextResponse.json({ error: 'Failed to fetch assignments' }, { status: 500 });
+  }
 }
 
-export function useTeacherAssignments() {
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
-  const [submissions, setSubmissions] = useState<Submission[]>([]);
-  const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
+// POST /api/assignments - Create assignment (teacher only)
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { title, classId, description, dueDate, questions, userId, userRole } = body;
 
-  useEffect(() => {
-    if (!user) return;
+    // Validate required fields
+    if (!title || !classId || !description || !dueDate || !questions || !userId) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
 
-    setLoading(true);
-    let assignmentsLoaded = false;
-    let submissionsLoaded = false;
+    // Check if user is a teacher
+    if (userRole !== 'teacher') {
+      return NextResponse.json({ error: 'Only teachers can create assignments' }, { status: 403 });
+    }
 
-    const checkLoadingComplete = () => {
-      if (assignmentsLoaded && submissionsLoaded) {
-        setLoading(false);
+    // Validate questions structure
+    if (!Array.isArray(questions) || questions.length === 0) {
+      return NextResponse.json({ error: 'At least one question is required' }, { status: 400 });
+    }
+
+    // Validate each question
+    for (const question of questions) {
+      if (!question.id || !question.text || typeof question.maxMarks !== 'number') {
+        return NextResponse.json({ error: 'Invalid question structure' }, { status: 400 });
       }
+    }
+
+    // Create assignment document
+    const assignmentData = {
+      title,
+      classId,
+      description,
+      dueDate,
+      questions,
+      totalQuestions: questions.length,
+      createdBy: userId,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
     };
 
-    const unsubscribeAssignments = listenToTeacherAssignments(
-      user.uid,
-      (assignmentsData) => {
-        setAssignments(assignmentsData);
-        assignmentsLoaded = true;
-        checkLoadingComplete();
-      },
-      (error) => {
-        console.error('Error loading assignments:', error);
-        assignmentsLoaded = true;
-        checkLoadingComplete();
-      }
-    );
+    const docRef = await addDoc(collection(db, 'assignments'), assignmentData);
 
-    const unsubscribeSubmissions = listenToAllSubmissions(
-      (submissionsData) => {
-        setSubmissions(submissionsData);
-        submissionsLoaded = true;
-        checkLoadingComplete();
-      },
-      (error) => {
-        console.error('Error loading submissions:', error);
-        submissionsLoaded = true;
-        checkLoadingComplete();
-      }
-    );
-
-    return () => {
-      unsubscribeAssignments();
-      unsubscribeSubmissions();
-    };
-  }, [user]);
-
-  return { assignments, submissions, loading };
+    return NextResponse.json({ 
+      id: docRef.id,
+      message: 'Assignment created successfully' 
+    });
+  } catch (error) {
+    console.error('Error creating assignment:', error);
+    return NextResponse.json({ error: 'Failed to create assignment' }, { status: 500 });
+  }
 }
