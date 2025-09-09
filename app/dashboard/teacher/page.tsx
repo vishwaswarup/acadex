@@ -119,9 +119,7 @@ export default function TeacherDashboard() {
           submissionId: selectedSubmission.id,
           teacherId: user?.uid,
           marks,
-          feedback,
-          userId: user?.uid,
-          userRole: 'teacher'
+          feedback
         }),
       });
 
@@ -150,7 +148,7 @@ export default function TeacherDashboard() {
 
   if (loading) {
     return (
-      <ProtectedRoute>
+      <ProtectedRoute role="teacher">
         <div className="min-h-screen pb-20">
           <Header title="Teacher Dashboard" />
           <div className="container mx-auto p-6">
@@ -162,7 +160,7 @@ export default function TeacherDashboard() {
   }
 
   return (
-    <ProtectedRoute>
+    <ProtectedRoute role="teacher">
       <div className="min-h-screen pb-20">
         <Header title="Teacher Dashboard" />
 
