@@ -1,103 +1,95 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { collection, addDoc, getDocs, query, where, orderBy, serverTimestamp } from 'firebase/firestore';
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import { Assignment } from '@/lib/types';
+import { 
+  collection, 
+  query, 
+  where, 
+  orderBy, 
+  onSnapshot, 
+  Unsubscribe 
+} from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
-import { Assignment, Question } from '@/lib/types';
 
-// GET /api/assignments - List assignments
-export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const classId = searchParams.get('classId');
-    const userId = searchParams.get('userId');
-
-    if (!userId) {
-      return NextResponse.json({ error: 'User ID required' }, { status: 400 });
-    }
-
-    // Build query based on classId filter
-    let assignmentsQuery = query(collection(db, 'assignments'), orderBy('createdAt', 'desc'));
-    
-    if (classId) {
-      assignmentsQuery = query(
-        collection(db, 'assignments'),
-        where('classId', '==', classId),
-        orderBy('createdAt', 'desc')
-      );
-    }
-
-    const assignmentsSnapshot = await getDocs(assignmentsQuery);
-    const assignments: Assignment[] = assignmentsSnapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        title: data.title,
-        classId: data.classId,
-        description: data.description,
-        dueDate: data.dueDate,
-        questions: data.questions || [],
-        totalQuestions: data.totalQuestions || (data.questions || []).length,
-        createdBy: data.createdBy,
-        createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
-        updatedAt: data.updatedAt?.toDate?.()?.toISOString() || new Date().toISOString(),
-      };
-    });
-
-    return NextResponse.json({ assignments });
-  } catch (error) {
-    console.error('Error fetching assignments:', error);
-    return NextResponse.json({ error: 'Failed to fetch assignments' }, { status: 500 });
-  }
+interface UseAssignmentsProps {
+  classId?: string;       // For students
+  teacherId?: string;     // For teacher dashboard
 }
 
-// POST /api/assignments - Create assignment (teacher only)
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const { title, classId, description, dueDate, questions, userId, userRole } = body;
+export const useAssignments = ({ classId, teacherId }: UseAssignmentsProps) => {
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-    // Validate required fields
-    if (!title || !classId || !description || !dueDate || !questions || !userId) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
-    }
+  const fetchAssignments = useCallback((): Unsubscribe => {
+    setLoading(true);
+    setError(null);
 
-    // Check if user is a teacher
-    if (userRole !== 'teacher') {
-      return NextResponse.json({ error: 'Only teachers can create assignments' }, { status: 403 });
-    }
+    try {
+      let q;
 
-    // Validate questions structure
-    if (!Array.isArray(questions) || questions.length === 0) {
-      return NextResponse.json({ error: 'At least one question is required' }, { status: 400 });
-    }
-
-    // Validate each question
-    for (const question of questions) {
-      if (!question.id || !question.text || typeof question.maxMarks !== 'number') {
-        return NextResponse.json({ error: 'Invalid question structure' }, { status: 400 });
+      if (teacherId) {
+        // Teacher dashboard: fetch assignments created by this teacher
+        q = query(
+          collection(db, 'assignments'),
+          where('createdBy', '==', teacherId),
+          orderBy('createdAt', 'desc')
+        );
+      } else if (classId) {
+        // Student dashboard: fetch assignments for the class
+        q = query(
+          collection(db, 'assignments'),
+          where('classId', '==', classId),
+          orderBy('createdAt', 'desc')
+        );
+      } else {
+        // Fallback: fetch all assignments (optional)
+        q = query(collection(db, 'assignments'), orderBy('createdAt', 'desc'));
       }
+
+      const unsubscribe = onSnapshot(
+        q,
+        (snapshot) => {
+          const fetchedAssignments: Assignment[] = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              title: data.title,
+              classId: data.classId,
+              description: data.description,
+              dueDate: data.dueDate,
+              questions: data.questions || [],
+              totalQuestions: data.totalQuestions || (data.questions || []).length,
+              createdBy: data.createdBy,
+              createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+              updatedAt: data.updatedAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+            };
+          });
+
+          setAssignments(fetchedAssignments);
+          setLoading(false);
+        },
+        (err) => {
+          console.error('Error fetching assignments:', err);
+          setError('Failed to fetch assignments');
+          setLoading(false);
+        }
+      );
+
+      return unsubscribe;
+    } catch (err: any) {
+      console.error('Error setting up assignments listener:', err);
+      setError(err.message || 'Unknown error');
+      setLoading(false);
+      return () => {}; // dummy unsubscribe
     }
+  }, [classId, teacherId]);
 
-    // Create assignment document
-    const assignmentData = {
-      title,
-      classId,
-      description,
-      dueDate,
-      questions,
-      totalQuestions: questions.length,
-      createdBy: userId,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    };
+  useEffect(() => {
+    const unsubscribe = fetchAssignments();
+    return () => unsubscribe();
+  }, [fetchAssignments]);
 
-    const docRef = await addDoc(collection(db, 'assignments'), assignmentData);
-
-    return NextResponse.json({ 
-      id: docRef.id,
-      message: 'Assignment created successfully' 
-    });
-  } catch (error) {
-    console.error('Error creating assignment:', error);
-    return NextResponse.json({ error: 'Failed to create assignment' }, { status: 500 });
-  }
-}
+  return { assignments, loading, error, refetch: fetchAssignments };
+};
